@@ -1,0 +1,8 @@
+1-Need to Catch Exception When Key does not exists in Dictionary:
+    flowsense.py:174
+
+2-Need to test if key from dic2 does not exist in dic1
+    flowsense.py:180
+
+3-Make the testing more automated with the flowsense (e.g. Launch Everytime we Launch Flowsense)
+
