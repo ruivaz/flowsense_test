@@ -52,12 +52,12 @@ def flowslice( device, btw_size, output_dir):
 
     #Slice the tcpdump file into n resulting tcpdump files with a
     # time range defined by btw_size
-
+    i=0
     while btw_offset < cap_range+btw_size:
         #Create and Add Btw to BTW object list
         output_file = output_dir + 'example_' + str(int(btw_offset / btw_size))
-        btw_collection.append(Btw(btw_start , btw_start +
-                     btw_size, output_file))
+        btw_collection.append(Btw(btw_start + (i*btw_size) , btw_start +((i+1)*btw_size)
+                     , output_file))
 
         #print 'tcpslice +' + str(btw_offset) + ' +' + str(btw_size) + '
         #       device' + ' -w ' + str(output_file)
@@ -72,6 +72,7 @@ def flowslice( device, btw_size, output_dir):
                         '+' + str(btw_size), device, '-w', output_file],
                         stdout = PIPE)
         btw_offset += btw_size
+        i+=1
 
     return btw_collection
 
@@ -85,31 +86,22 @@ def flowstats(btw_collection):
     for btw in btw_collection:
         output = Popen(['tcpdump', 'ip', '-vnn' , '-q', '-r', btw.device  ],
                        stdout = PIPE)
-        print 'Device: ' + btw.device
         #Make sure we don't get a duplicate packet
         ids={}
         l=0
         for i, line in enumerate(output.stdout):
-            print line
             if i % 2 == 0:
-                id=find_between(line, 'id ', ', offset')
-                ttl=find_between(line, 'ttl ', ', id')
                 proto = line[line.find('(', 60)+1:line.find(')')]
-                if id in ids:
-                    if ids[id] == ttl:
-                        proto = -1
+                if not line[0].isdigit():
+                    proto = -1
             else:
                 if proto != -1:
                     l+=1
                     key = (line.split(':')[0] + ' ' + proto).strip()
-                    print 'Key ' + key
                     if not key in btw.hashmap:
                         btw.hashmap[key] = 1
-                        print 'Value: 1'
                     else:
                         btw.hashmap[key] += 1
-                        print 'Value ' + str(btw.hashmap[key])
-        print 'Number of Packets: ' + str(l)
         output.terminate()
 
 
@@ -137,13 +129,13 @@ packetDeltaCount, octetDelta" + '\n' + "Check Statistics File Line: " + str(i)
                     return -1
                 # If this is the beginning create a new Btw object
                 if prev_btwstart == 0:
-                    btw = Btw(elems[2] , elems[3], '')
+                    btw = Btw(elems[2] , elems[3], filepath)
                     prev_btwstart = elems[2]
 
                 # If a new BTW create a new Btw object and add previous to list
                 elif elems[2] != prev_btwstart:
                     btw_collection.append(btw)
-                    btw = Btw(elems[2] , elems[3], '')
+                    btw = Btw(elems[2] , elems[3], filepath)
                     prev_btwstart = elems[2]
 
                 if elems[6] == '0':
@@ -167,16 +159,27 @@ def test(btw_collection, btw_collection_file):
 
     status = 'OK'
 
+    print ''
+    print ''
+    print '++++++++++++++++++++++++Begin Test+++++++++++++++++++++++++++'
+    print 'BTW Size: ' + str(btw_collection[0].end - btw_collection[0].start)
+    print 'Flowsense Statistics: ' + btw_collection_file[0].device
+
     if len(btw_collection) != len(btw_collection_file):
         return 'Error: Number of BTWs between stats file and proof differs'
     else:
         for i in range(len(btw_collection)):
+            print '========================================================'
+            print 'BTW Start: ' + str(btw_collection[i].start)
+            print 'BTW End: ' + str(btw_collection[i].end)
             status = dics_equals(btw_collection[i].hashmap,
                     btw_collection_file[i].hashmap)
             if status != 'OK':
                 return status
 
-    return status
+    print '+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++'
+    print '-------------------------------------------------------------'
+    return 'All Tests Passed - Success'
 
 def dics_equals(dic1, dic2):
 
@@ -184,10 +187,13 @@ def dics_equals(dic1, dic2):
         If they don't match find where's
         the mismatch """
 
-    print len(dic1)
-    print len(dic2)
+    print 'Number of Flows in Proof Dictionary ' + str(len(dic1))
+    print 'Number of Flows calculated by FlowSense ' + str(len(dic2))
+    #If the number of shared items between the two dics is equal
+    #to the size of the dictionaries, the dictionaries are identical
+
     shared_items = set(dic1.items()) & set(dic2.items())
-    print len(shared_items)
+    print 'Number of Equal Flows between Proof and Flowsense ' + str(len(shared_items))
 
     if len(shared_items) != len(dic1) or len(shared_items) != len(dic2):
         for key in dic1:
@@ -261,3 +267,4 @@ if __name__ == "__main__":
 
     #Compare the Output BTW File from Flowsense with the Calculate BTW File
     print test(btw_collection, btw_collection_file)
+    print '-------------------------------------------------------------'
