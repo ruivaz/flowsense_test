@@ -107,31 +107,39 @@ def readstats(filepath):
     btw_collection = []
 
     prev_btwstart = 0
+    with open(filepath, 'r') as statsfile:
+        for i, line in enumerate(statsfile):
+            # Skip first line with meta-info
+            if i != 0:
+                elems = line.split(',')
+                if len(elems) != 11:
+                    print "Error: Stats File Should Have the following Format:" + '\n' \
+                    + "messageLength, type, btwStartSeconds, btwEndSeconds, sourceIPv4Address, \
+destinationIPv4Address, sourceTransportPort, \
+destinationTransportPort, protocolIdentifier, \
+packetDeltaCount, octetDelta" + '\n' + "Check Statistics File Line: " + str(i)
+                    return -1
+                # If this is the beginning create a new Btw object
+                if prev_btwstart == 0:
+                    btw = Btw(elems[2] , elems[3], '')
+                    prev_btwstart = elems[2]
 
-    for i, line in enumerate(open(filepath)):
-        # Skip first line with meta-info
-        if i != 0:
-            elems = line.split(',')
-            # If this is the beginning create a new Btw object
-            if prev_btwstart == 0:
-                btw = Btw(elems[2] , elems[3], '')
-                prev_btwstart = elems[2]
+                # If a new BTW create a new Btw object and add previous to list
+                elif elems[2] != prev_btwstart:
+                    btw_collection.append(btw)
+                    btw = Btw(elems[2] , elems[3], '')
+                    prev_btwstart = elems[2]
 
-            # Is this a new BTW create a new Btw object and add previous to list
-            elif elems[2] != prev_btwstart:
-                btw_collection.append(btw)
-                btw = Btw(elems[2] , elems[3], '')
-                prev_btwstart = elems[2]
-
-            if elems[6] == '0':
-                key = elems[4] + ' ' + '>' + ' ' +elems[5] + ' ' + elems[8]
-                btw.hashmap[key] = elems[9]
-            else:
-                key = elems[4] + '.' + elems[6] + ' ' + '>' + ' ' \
-                    +elems[5] + '.' + elems[7] + ' ' + elems[8]
-                btw.hashmap[key] = int(elems[9])
+                if elems[6] == '0':
+                    key = elems[4] + ' ' + '>' + ' ' +elems[5] + ' ' + elems[8]
+                    btw.hashmap[key] = elems[9]
+                else:
+                    key = elems[4] + '.' + elems[6] + ' ' + '>' + ' ' \
+                        +elems[5] + '.' + elems[7] + ' ' + elems[8]
+                    btw.hashmap[key] = int(elems[9])
 
     btw_collection.append(btw)
+
 
     return btw_collection
 
@@ -147,7 +155,8 @@ def test(btw_collection, btw_collection_file):
         return 'Error: Number of BTWs between differs'
     else:
         for i in range(len(btw_collection)):
-            status = dics_equals(btw_collection[i].hashmap, btw_collection_file[i].hashmap)
+            status = dics_equals(btw_collection[i].hashmap,
+                    btw_collection_file[i].hashmap)
             if status != 'OK':
                 return status
 
@@ -166,23 +175,23 @@ def dics_equals(dic1, dic2):
 
     if len(shared_items) != len(dic1) or len(shared_items) != len(dic2):
         for key in dic1:
-            #try:
-            #    dic2[key]
-            #except KeyError:
-            #    return 'Error: Flow : ' + key + \
-            #        ' does not exist in Statistics File'
+            try:
+                dic2[key]
+            except KeyError:
+                return 'Error: Flow : ' + key + \
+                    ' does not exist in Statistics File'
             if dic1[key] != dic2[key]:
                 print dic1[key]
                 print dic2[key]
                 return 'Error: Number of Packets in Flow: ' + key + \
                     ' differs'
 
-        #for key in dic2:
-            #try:
-            #    dic1[key]
-            #except KeyError:
-            #    return 'Error: Flow : ' + key + \
-            #        ' does not exist in Statistics File'
+        for key in dic2:
+            try:
+                dic1[key]
+            except KeyError:
+                return 'Error: Flow : ' + key + \
+                    ' does not exist in Proof File'
 
     else:
         return 'OK'
