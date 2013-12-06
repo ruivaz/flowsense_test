@@ -179,7 +179,7 @@ def test(btw_collection, btw_collection_file):
 
     print '+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++'
     print '-------------------------------------------------------------'
-    return 'All Tests Passed - Success'
+    return 'Test Passed - Success'
 
 def dics_equals(dic1, dic2):
 
